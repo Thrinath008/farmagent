@@ -72,7 +72,11 @@ async def _weather_for(resolved: _Resolved, provider, force_refresh: bool) -> We
 def _issues(resolved: _Resolved, bundle: WeatherBundle) -> list[ApiIssue]:
     if resolved.latitude is None or resolved.longitude is None:
         return [_NO_LOCATION]
-    return [ApiIssue(code=e.code, message=e.message) for e in bundle.errors]
+    # Current weather and the forecast usually fail for the same reason. Report that reason once.
+    unique: dict[str, ApiIssue] = {}
+    for error in bundle.errors:
+        unique.setdefault(error.code, ApiIssue(code=error.code, message=error.message))
+    return list(unique.values())
 
 
 @router.post("/irrigation/assess", response_model=IrrigationResponse)

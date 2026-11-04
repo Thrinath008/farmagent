@@ -491,6 +491,31 @@ async def test_weather_failure_gives_an_honest_assessment_not_a_crash(client, gu
     assert body["weather_issues"][0]["code"] == "weather_unavailable"
 
 
+async def test_both_feeds_failing_the_same_way_report_it_once(client, guest, owm):
+    owm.get("/data/2.5/weather").respond(status_code=500)
+    owm.get("/data/2.5/forecast").respond(status_code=500)
+    body = (
+        await client.post(
+            "/api/irrigation/assess", json={"latitude": 30.9, "longitude": 75.85}, headers=guest
+        )
+    ).json()
+    assert [issue["code"] for issue in body["weather_issues"]] == ["weather_unavailable"]
+
+
+async def test_feeds_failing_differently_report_both(client, guest, owm):
+    owm.get("/data/2.5/weather").respond(status_code=500)
+    owm.get("/data/2.5/forecast").respond(status_code=429)
+    body = (
+        await client.post(
+            "/api/irrigation/assess", json={"latitude": 30.9, "longitude": 75.85}, headers=guest
+        )
+    ).json()
+    assert {issue["code"] for issue in body["weather_issues"]} == {
+        "weather_unavailable",
+        "weather_rate_limited",
+    }
+
+
 async def test_one_failed_weather_feed_is_stated_as_missing(client, guest, owm):
     owm.get("/data/2.5/weather").respond(json=owm_current())
     owm.get("/data/2.5/forecast").respond(status_code=500)

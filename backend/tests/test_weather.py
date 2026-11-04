@@ -236,6 +236,27 @@ async def test_expired_cache_is_served_flagged_when_the_provider_fails(service, 
     assert "could not be refreshed" in result.meta.warning
 
 
+@pytest.mark.parametrize(
+    ("elapsed", "wording"),
+    [
+        (timedelta(seconds=20), "retrieved less than a minute ago"),
+        (timedelta(seconds=90), "retrieved 1 minute ago"),
+        (timedelta(minutes=8), "retrieved 8 minutes ago"),
+    ],
+)
+async def test_failed_refresh_says_how_old_the_data_is(service, owm, elapsed, wording):
+    weather, clock = service
+    route = owm.get(CURRENT_URL)
+    route.respond(json=owm_current(observed=clock.now))
+    await weather.get_current(30.9, 75.85)
+
+    clock.now += elapsed
+    route.respond(status_code=500)
+    result = await weather.get_current(30.9, 75.85, force_refresh=True)
+    assert result.meta.provenance == DataProvenance.CACHED
+    assert wording in result.meta.warning
+
+
 async def test_cache_too_old_to_trust_becomes_an_error(service, owm):
     weather, clock = service
     route = owm.get(CURRENT_URL)

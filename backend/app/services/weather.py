@@ -188,9 +188,14 @@ class WeatherService:
         expired = row.expires_at <= now
         warning = None
         if refresh_failed:
+            retrieved = (
+                "less than a minute ago"
+                if age_minutes < 1
+                else f"{age_minutes} minute{'s' if age_minutes != 1 else ''} ago"
+            )
             warning = (
-                f"Live weather could not be refreshed. This data was retrieved {age_minutes} "
-                "minutes ago and may be out of date."
+                f"Live weather could not be refreshed. This data was retrieved {retrieved} "
+                "and may be out of date."
             )
         document = dict(row.payload)
         document["meta"] = WeatherMeta(

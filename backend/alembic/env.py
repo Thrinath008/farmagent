@@ -4,7 +4,6 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-
 from app.core.config import Settings
 from app.database.base import UTCDateTime
 from app.database.session import build_engine
