@@ -1,0 +1,24 @@
+[project]
+name = "farmagent-backend"
+version = "1.0.0"
+description = "FarmAgent — intelligent personal farming assistant API"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["B008", "E501"]  # the formatter governs line length; prose strings may run over
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__init__.py"]
