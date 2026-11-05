@@ -1,0 +1,12 @@
+# Backend environment for conda users. From the repository root:
+#   conda env create -f backend/environment.yml
+#   conda activate farmagent
+name: farmagent
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements-dev.txt

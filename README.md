@@ -75,7 +75,8 @@ risk come from the deterministic engine. Full detail is in
 ## Installation
 
 You need Python 3.12 or newer, Node 24 (the dependencies accept 22.22 or newer), and PostgreSQL. This
-was developed on Python 3.12, Node 24 and PostgreSQL 15. The backend tests also pass on Python 3.13.
+was developed on Python 3.12 and Node 24. The backend tests also pass on Python 3.13, and on PostgreSQL
+15 and 17. Supabase uses 17.
 
 ```bash
 git clone <your-repository-url> farmagent
@@ -107,7 +108,7 @@ Any PostgreSQL database works. For example, with Docker, which matches `.env.exa
 
 ```bash
 docker run --name farmagent-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=farmagent \
-  -p 5432:5432 -d postgres:15
+  -p 5432:5432 -d postgres:17
 ```
 
 The backend steps below create the tables with `alembic upgrade head`.
@@ -122,7 +123,16 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-Keep the first line as one command: if the virtual environment cannot be created, `pip` must not go on
+With conda, run this from the repository root instead of the first three lines. It installs the
+requirements too:
+
+```bash
+conda env create -f backend/environment.yml
+conda activate farmagent
+cd backend
+```
+
+For the venv route, keep the first line as one command: if the virtual environment cannot be created, `pip` must not go on
 to install into your system Python. If `python3.12` is not on your PATH, `uv venv --python 3.12` makes
 an equivalent environment.
 
@@ -184,7 +194,8 @@ Automated tests cannot prove the real services accept our requests, so check the
 
 ### 1. Database: Supabase
 
-1. Create a project.
+1. Create a project. `render.yaml` runs the API in Singapore, so choose a nearby region such as South
+   Asia (Mumbai). Every request makes several database calls, so distance adds up.
 2. In **Connect**, copy the **Session pooler** connection string. Render cannot reach Supabase's direct
    connection, which is IPv6-only on the default plan.
 3. Keep it for `DATABASE_URL`. On Render, `render.yaml` runs the migrations before starting the API.
