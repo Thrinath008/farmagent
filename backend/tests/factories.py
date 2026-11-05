@@ -103,7 +103,10 @@ def tool_block(name: str, tool_input: dict, block_id: str = "toolu_1") -> Simple
 
 
 def model_response(stop_reason: str, *blocks) -> SimpleNamespace:
-    return SimpleNamespace(stop_reason=stop_reason, content=list(blocks))
+    usage = SimpleNamespace(
+        input_tokens=1, cache_creation_input_tokens=0, cache_read_input_tokens=0, output_tokens=1
+    )
+    return SimpleNamespace(stop_reason=stop_reason, content=list(blocks), usage=usage)
 
 
 def final_json(**overrides) -> str:

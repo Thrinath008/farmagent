@@ -198,7 +198,17 @@ class FarmAgent:
         if settings.anthropic_adaptive_thinking:
             params["thinking"] = {"type": "adaptive"}
         try:
-            return await self._client.messages.create(**params)
+            response = await self._client.messages.create(**params)
+            usage = response.usage
+            logger.info(
+                "anthropic usage model=%s input=%s cache_write=%s cache_read=%s output=%s",
+                settings.anthropic_model,
+                usage.input_tokens,
+                usage.cache_creation_input_tokens,
+                usage.cache_read_input_tokens,
+                usage.output_tokens,
+            )
+            return response
         except anthropic.APITimeoutError:
             logger.warning("anthropic request timed out")
             raise AgentTimeoutError() from None
@@ -306,11 +316,13 @@ _CORRECTIONS = {
     "no_weather": (
         "You gave weather-dependent advice without retrieving weather in this conversation turn. "
         "Call the appropriate weather or assessment tool now, then answer from its result. If you "
-        'have no coordinates, ask the farmer for a location with intent "general".'
+        'have no coordinates, ask the farmer for a location with intent "general". Answer the '
+        "farmer's question directly, and do not mention this correction or your last response."
     ),
     "dosage": (
         "Your answer contains a chemical or product dose. Remove every dose and product instruction. "
-        "Give monitoring advice and refer treatment decisions to a local extension officer."
+        "Give monitoring advice and refer treatment decisions to a local extension officer. Answer "
+        "the farmer's question directly, and do not mention this correction or your last response."
     ),
 }
 

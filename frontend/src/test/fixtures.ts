@@ -39,7 +39,7 @@ export const health: Health = {
   database: "ok",
   weather_configured: true,
   ai_configured: true,
-  ai_model: "claude-opus-5-5",
+  ai_model: "claude-haiku-5-5",
 };
 
 export const catalog: Catalog = {

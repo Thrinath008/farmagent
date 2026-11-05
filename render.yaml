@@ -18,7 +18,7 @@ services:
       - key: TRUST_PROXY_HEADERS
         value: "true"
       - key: ANTHROPIC_MODEL
-        value: claude-opus-5-5
+        value: claude-haiku-5-5
       - key: DATABASE_URL
         sync: false
       - key: ANTHROPIC_API_KEY

@@ -10,7 +10,7 @@ import httpx2
 import pytest
 from sqlalchemy import func, select
 
-from app.agents.farm_agent import FarmAgent
+from app.agents.farm_agent import _CORRECTIONS, FarmAgent
 from app.agents.output import FINAL_OUTPUT_SCHEMA
 from app.agents.prompts import STATIC_SYSTEM_PROMPT, build_context_block
 from app.core.errors import AgentError, AgentNotConfiguredError, AgentTimeoutError
@@ -589,7 +589,7 @@ async def test_request_uses_configured_model_tools_and_structured_output(setting
     call = model.calls[0]
     assert call["model"] == "claude-test-model"
     assert call["output_config"]["format"]["type"] == "json_schema"
-    assert call["thinking"] == {"type": "adaptive"}
+    assert "thinking" not in call
     assert call["system"][0]["text"] == STATIC_SYSTEM_PROMPT
     assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert {t["name"] for t in call["tools"]} == {
@@ -606,13 +606,20 @@ async def test_request_uses_configured_model_tools_and_structured_output(setting
         assert tool["input_schema"]["type"] == "object"
 
 
-async def test_thinking_can_be_turned_off(make_settings, tool_context):
+async def test_thinking_can_be_turned_on(make_settings, tool_context):
     agent, model = make_agent(
-        make_settings(anthropic_adaptive_thinking=False),
+        make_settings(anthropic_adaptive_thinking=True),
         final_response(intent="general", summary="Hi."),
     )
     await run(agent, tool_context)
-    assert "thinking" not in model.calls[0]
+    assert model.calls[0]["thinking"] == {"type": "adaptive"}
+
+
+async def test_token_usage_is_logged(settings, tool_context, caplog):
+    agent, _ = make_agent(settings, final_response(intent="general", summary="Hi."))
+    with caplog.at_level("INFO", logger="farmagent.agent"):
+        await run(agent, tool_context)
+    assert "anthropic usage model=claude-test-model input=1" in caplog.text
 
 
 def test_system_prompt_states_the_non_negotiable_rules():
@@ -621,6 +628,18 @@ def test_system_prompt_states_the_non_negotiable_rules():
     assert "Rain probability is the chance of rain" in prompt
     assert "It cannot show that one is present" in prompt
     assert "Never prescribe pesticides" in prompt
+
+
+def test_system_prompt_keeps_token_use_down():
+    prompt = STATIC_SYSTEM_PROMPT
+    assert "do not also call the weather or crop tools" in prompt
+    assert 'Ask for the location with intent "general"' in prompt
+    assert "Cached data that is not stale is valid" in prompt
+
+
+@pytest.mark.parametrize("problem", ["no_weather", "dosage"])
+def test_corrections_stay_out_of_the_farmers_answer(problem):
+    assert "do not mention this correction" in _CORRECTIONS[problem]
 
 
 def test_context_block_marks_simulation_and_keeps_unknowns_null():
@@ -687,7 +706,7 @@ async def test_real_sdk_round_trip(settings, tool_context, owm):
 
     first = json.loads(requests[0].content)
     assert first["model"] == "claude-test-model"
-    assert first["thinking"] == {"type": "adaptive"}
+    assert "thinking" not in first
     assert first["output_config"]["format"]["schema"]["additionalProperties"] is False
     assert len(first["tools"]) == 7
     assert all("input_schema" in tool for tool in first["tools"])

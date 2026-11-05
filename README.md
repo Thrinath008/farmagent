@@ -18,9 +18,9 @@ never quietly substitutes made-up data.
 | Area | State |
 |---|---|
 | Backend, rule engine, agent loop, frontend | Complete, with automated tests |
-| Browser flows, including failure paths | Run against the production build, with mock upstream services |
-| Real OpenWeatherMap calls | **Not yet run.** Needs an API key |
-| Real Claude calls | **Not yet run.** Needs an API key. See [First run with real keys](#first-run-with-real-keys) |
+| Browser flows, including failure paths | Run against the production build, with mock upstream services. The main flows also ran on the dev server with live weather and Claude |
+| Real OpenWeatherMap calls | **Tested** on the local dev server, through the whole app |
+| Real Claude calls | **Tested** with `claude-haiku-5-5` on the local dev server, including tool calls and streaming. See [First run with real keys](#first-run-with-real-keys) |
 | Supabase, Render and Vercel deployment | **Configured, not yet run.** Needs the accounts |
 | GitHub Actions workflow | **Written, not yet run.** Its migration and test commands were run by hand |
 
@@ -93,7 +93,7 @@ Edit `.env` in the repository root. The backend also reads `backend/.env`.
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `OPENWEATHER_API_KEY` | For live weather | From [openweathermap.org/api](https://openweathermap.org/api). New keys can take a few hours to activate |
 | `ANTHROPIC_API_KEY` | For the assistant | From [console.anthropic.com](https://console.anthropic.com) |
-| `ANTHROPIC_MODEL` | No | Defaults to `claude-opus-5-5` |
+| `ANTHROPIC_MODEL` | No | Defaults to `claude-haiku-5-5` |
 | `FRONTEND_URL` | In production | The frontend's address, for CORS |
 | `ENVIRONMENT` | No | `development`, `test`, `staging` or `production` |
 | `TRUST_PROXY_HEADERS` | On Render | `true` behind a proxy that sets `X-Forwarded-For` |
@@ -110,6 +110,9 @@ Any PostgreSQL database works. For example, with Docker, which matches `.env.exa
 docker run --name farmagent-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=farmagent \
   -p 5432:5432 -d postgres:17
 ```
+
+To run your own local cluster instead, `.pgdata/` is git-ignored for its data. Point `DATABASE_URL` at its
+port. SQLite will not work, because the migration enables row-level security.
 
 The backend steps below create the tables with `alembic upgrade head`.
 
@@ -186,9 +189,8 @@ Automated tests cannot prove the real services accept our requests, so check the
 2. The Weather page shows **Live weather**. Refresh it, and the badge should stay live.
 3. Ask the assistant "Should I irrigate my wheat today?". It should show a weather check running, and
    the answer should show the weather it used.
-4. If the assistant fails with a request error, check the backend log first. Set
-   `ANTHROPIC_ADAPTIVE_THINKING=false` if the chosen model does not accept that setting with tools and
-   structured output.
+4. If the assistant fails with a request error, check the backend log first. It also records the
+   tokens used by each model call.
 
 ## Deployment
 

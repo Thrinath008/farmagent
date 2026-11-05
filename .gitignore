@@ -33,3 +33,6 @@ test-results/
 
 # Local build brief, not part of the product
 prompt.txt
+
+# Local development database
+.pgdata/

@@ -92,8 +92,8 @@ frontend/src/
 
 - Official Anthropic Python SDK, with a manual loop rather than a tool runner, because the loop has
   to enforce budgets and inspect results.
-- Default model `claude-opus-5-5`, set by `ANTHROPIC_MODEL`. Adaptive thinking is on by default
-  (`ANTHROPIC_ADAPTIVE_THINKING`).
+- Default model `claude-haiku-5-5`, set by `ANTHROPIC_MODEL`. Adaptive thinking is off by default to
+  save tokens (`ANTHROPIC_ADAPTIVE_THINKING`). The log records token counts for each model call.
 - Final answers use `output_config.format` with a JSON schema.
 - Seven tools: `get_current_weather`, `get_weather_forecast`, `get_crop_information`,
   `assess_irrigation_need`, `assess_weather_pest_risk`, `get_location_information`,

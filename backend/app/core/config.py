@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5"
+DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5"
 
 
 class Settings(BaseSettings):
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     anthropic_timeout_seconds: float = 60.0
     anthropic_max_retries: int = 2
     anthropic_max_tokens: int = 4096
-    anthropic_adaptive_thinking: bool = True
+    anthropic_adaptive_thinking: bool = False
 
     # Agent guard rails
     agent_max_iterations: int = Field(default=6, ge=1, le=20)
