@@ -98,7 +98,11 @@ class SafeErrorMiddleware:
 
 
 class SlidingWindowLimiter:
-    """A per-key sliding window. Per-process: one Render instance is the deployment target."""
+    """A per-key sliding window, kept in process memory.
+
+    On Vercel each function instance keeps its own window, so when traffic spreads over several
+    instances a client can get somewhat more than the limit. It still caps bursts from one client.
+    """
 
     def __init__(self, clock: Callable[[], float] = time.monotonic, window: float = 60.0) -> None:
         self._clock = clock
@@ -148,7 +152,8 @@ class RateLimitMiddleware:
         if self.settings.trust_proxy_headers:
             forwarded = Headers(scope=scope).get("x-forwarded-for")
             if forwarded:
-                # Render appends the address it saw, so the last hop is the trustworthy one.
+                # Vercel sets this header itself, and a proxy appends the address it saw, so the last
+                # entry is the trustworthy one.
                 return forwarded.split(",")[-1].strip()
         client = scope.get("client")
         return client[0] if client else "unknown"

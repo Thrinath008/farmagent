@@ -21,8 +21,8 @@ never quietly substitutes made-up data.
 | Browser flows, including failure paths | Run against the production build, with mock upstream services. The main flows also ran on the dev server with live weather and Claude |
 | Real OpenWeatherMap calls | **Tested** on the local dev server, through the whole app |
 | Real Claude calls | **Tested** with `claude-haiku-5-5` on the local dev server, including tool calls and streaming. See [First run with real keys](#first-run-with-real-keys) |
-| Supabase, Render and Vercel deployment | **Configured, not yet run.** Needs the accounts |
-| GitHub Actions workflow | **Written, not yet run.** Its migration and test commands were run by hand |
+| Vercel and Neon deployment | **Deployed** at <https://farmagent-eight.vercel.app>. Health, every main API route, streaming, rate limits and every page were checked on the live site |
+| GitHub Actions workflow | **Tested.** Backend and frontend jobs pass, including the migration on PostgreSQL 17 |
 
 ### What needs credentials
 
@@ -53,10 +53,10 @@ never quietly substitutes made-up data.
 |---|---|
 | Frontend | React, Vite, TypeScript, Tailwind CSS, shadcn/ui, Lucide, Framer Motion, Recharts, React Router, TanStack Query, React Hook Form, Zod |
 | Backend | Python 3.12, FastAPI, Pydantic, HTTPX, Uvicorn, SQLAlchemy, Alembic |
-| Database | PostgreSQL (Supabase in production) |
+| Database | PostgreSQL (Neon in production) |
 | AI | Anthropic Python SDK, with native tool calling |
 | Weather | OpenWeatherMap |
-| Hosting | Vercel (frontend), Render (backend), Supabase (database) |
+| Hosting | Vercel (frontend and API, one project with two services), Neon (database) |
 
 ## Architecture
 
@@ -76,13 +76,22 @@ risk come from the deterministic engine. Full detail is in
 
 You need Python 3.12 or newer, Node 24 (the dependencies accept 22.22 or newer), and PostgreSQL. This
 was developed on Python 3.12 and Node 24. The backend tests also pass on Python 3.13, and on PostgreSQL
-15 and 17. Supabase uses 17.
+15 and 17. The Neon database runs 17.
 
 ```bash
 git clone <your-repository-url> farmagent
 cd farmagent
 cp .env.example .env
 ```
+
+If you have the code as a ZIP, skip the clone and start in the folder that holds this README. On
+Windows, use `copy` instead of `cp`, and `.venv\Scripts\activate` in place of `source .venv/bin/activate`.
+
+## Libraries and data
+
+`requirements.txt` in the repository root lists the backend's Python libraries, and
+`frontend/package.json` lists the frontend's. No dataset is used and no model is trained. Weather comes
+live from OpenWeatherMap, and the crop rules are written in `backend/app/intelligence/`.
 
 ## Environment configuration
 
@@ -96,11 +105,11 @@ Edit `.env` in the repository root. The backend also reads `backend/.env`.
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-haiku-5-5` |
 | `FRONTEND_URL` | In production | The frontend's address, for CORS |
 | `ENVIRONMENT` | No | `development`, `test`, `staging` or `production` |
-| `TRUST_PROXY_HEADERS` | On Render | `true` behind a proxy that sets `X-Forwarded-For` |
+| `TRUST_PROXY_HEADERS` | On Vercel | `true` behind a proxy that sets `X-Forwarded-For`, as Vercel does |
 
-`.env.example` lists every optional setting. The frontend has one setting, `VITE_API_URL`, used only
-when deployed. **Never commit `.env`, and never put a key in a `VITE_` variable**, since those ship to
-the browser.
+`.env.example` lists every optional setting. The frontend has one optional setting, `VITE_API_URL`, for
+an API on a different address. On Vercel the API shares the site's address, so it stays unset. **Never
+commit `.env`, and never put a key in a `VITE_` variable**, since those ship to the browser.
 
 ## Database setup
 
@@ -194,33 +203,56 @@ Automated tests cannot prove the real services accept our requests, so check the
 
 ## Deployment
 
-### 1. Database: Supabase
+FarmAgent runs as one Vercel project with two services, defined in `vercel.json`: the Vite frontend,
+and the FastAPI backend, which receives every request under `/api`. The database is on Neon. Both run
+in Singapore (Vercel `sin1`, Neon `aws-ap-southeast-1`), close to each other and to users in India.
 
-1. Create a project. `render.yaml` runs the API in Singapore, so choose a nearby region such as South
-   Asia (Mumbai). Every request makes several database calls, so distance adds up.
-2. In **Connect**, copy the **Session pooler** connection string. Render cannot reach Supabase's direct
-   connection, which is IPv6-only on the default plan.
-3. Keep it for `DATABASE_URL`. On Render, `render.yaml` runs the migrations before starting the API.
+The live site is <https://farmagent-eight.vercel.app>.
 
-Row-level security is enabled on every table, with no policies, so Supabase's public Data API cannot
-read them. The app connects as the database owner and is unaffected. No Supabase key is used in the
-frontend.
+### 1. Database: Neon
 
-### 2. Backend: Render
+1. Create a Neon project with PostgreSQL 17, in AWS Asia Pacific (Singapore).
+2. Copy two connection strings: the pooled one, whose host contains `-pooler`, for the app, and the
+   direct one for migrations.
+3. Create the tables from your machine, using the direct string:
 
-1. **New > Blueprint**, and select this repository. `render.yaml` defines the service.
-2. Enter `DATABASE_URL`, `ANTHROPIC_API_KEY` and `OPENWEATHER_API_KEY` when asked.
-3. Set `FRONTEND_URL` once you know the Vercel address.
-4. Check `https://<service>.onrender.com/api/health`.
+   ```bash
+   cd backend
+   DATABASE_URL='<direct connection string>' alembic upgrade head
+   ```
 
-Render's free plan sleeps when idle, so the first request after a pause can take about a minute.
+   Run this again whenever a migration is added. Vercel does not run migrations.
 
-### 3. Frontend: Vercel
+Row-level security is enabled on every table, with no policies. The app connects as the database
+owner, which bypasses it, so the app is unaffected.
 
-1. Import the repository, and set **Root Directory** to `frontend`.
-2. Set `VITE_API_URL` to the Render address, with no trailing slash.
-3. Deploy, then set Render's `FRONTEND_URL` to the Vercel address. For preview deployments, add their
-   addresses to `EXTRA_CORS_ORIGINS`.
+### 2. Frontend and API: Vercel
+
+1. Install the CLI (`npm i -g vercel`, or put `npx` before each command), then run `vercel login`, and
+   `vercel link` in the repository root.
+2. Add these settings for Production, for example `vercel env add ANTHROPIC_API_KEY production
+   --sensitive`, which asks for the value:
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon's pooled connection string |
+   | `ANTHROPIC_API_KEY`, `OPENWEATHER_API_KEY` | Your keys |
+   | `ANTHROPIC_MODEL` | `claude-haiku-5-5` |
+   | `ENVIRONMENT` | `production` |
+   | `TRUST_PROXY_HEADERS` | `true` |
+   | `FRONTEND_URL` | The site's production address |
+
+3. Run `vercel deploy --prod`, then open `/api/health` on the new address.
+
+`.vercelignore` keeps `.env`, the local database and the tests out of the upload. Vercel installs the
+backend's libraries from `backend/pyproject.toml`, so it must list the same libraries as
+`requirements.txt`. A backend test checks that.
+
+The project is also connected to the GitHub repository, so each push to `main` deploys to production.
+Preview deployments only get these settings if you add them for Preview as well.
+
+The site is public, and every assistant answer uses the Anthropic account's credits. The per-client
+rate limits stop bursts, but a spending limit in the Anthropic console is the real cap.
 
 ## Demonstration scenarios
 
@@ -264,10 +296,10 @@ Some choices differ from what you might assume. The reasons are in
 
 - Tools take coordinates and fetch weather themselves, so the model cannot supply invented values.
 - The assistant streams its checks and the validated final answer, not individual tokens.
-- Sign-in is a guest session stored in the browser, not Supabase Auth.
+- Sign-in is a guest session stored in the browser, not an account with a password.
 - Growth stage is chosen by the farmer, never estimated from the sowing date.
 - The UI is in English. The preferred language applies to assistant replies only.
-- The rate limiter is in memory, so it suits one instance.
+- The rate limiter is in memory. On Vercel each instance keeps its own count, so limits are approximate.
 
 ## Agricultural rules
 

@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:
-        # Supabase and Render hand out plain postgres:// URLs; the app drives Postgres with psycopg 3.
+        # Neon and most hosts hand out plain postgres:// URLs; the app drives Postgres with psycopg 3.
         for prefix in ("postgresql://", "postgres://"):
             if value.startswith(prefix):
                 return "postgresql+psycopg://" + value[len(prefix) :]

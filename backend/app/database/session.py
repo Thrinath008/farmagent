@@ -25,7 +25,8 @@ def build_engine(database_url: str) -> AsyncEngine:
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=5,
-        # Supabase's transaction pooler cannot use server-side prepared statements.
+        # Neon's pooled connections go through PgBouncer in transaction mode, so the app does not
+        # rely on server-side prepared statements.
         connect_args={"prepare_threshold": None},
     )
 

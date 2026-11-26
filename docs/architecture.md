@@ -3,10 +3,10 @@
 ## System overview
 
 ```text
-                     Browser (React, Vercel)
+                     Browser (React, served by Vercel)
                               │  HTTPS, X-Guest-Token. No API keys ever reach here.
                               ▼
-                     FastAPI (Render)
+                     FastAPI (Vercel Function, under /api)
       ┌───────────────────────┼─────────────────────────┐
       │                       │                         │
   api/ routers          agents/farm_agent          middleware
@@ -22,7 +22,7 @@
       │
       ├── OpenWeatherMap (server side only)
       ├── Anthropic API (server side only)
-      └── PostgreSQL (Supabase): farms, conversations, history, weather cache
+      └── PostgreSQL (Neon): farms, conversations, history, weather cache
 ```
 
 ## Principles
@@ -179,8 +179,8 @@ rather than cascaded when the farm is deleted, so history survives. Recommendati
 the conversation they came from.
 
 Migrations are in `backend/alembic/versions`. Every table has row-level security enabled with no
-policies. The app connects as the database owner, which bypasses RLS, so this closes Supabase's
-auto-generated Data API to these tables without affecting the app.
+policies. The app connects as the database owner, which bypasses RLS, so a hosted data API, such as
+Supabase's or Neon's, cannot read these tables, and the app is unaffected.
 
 ## Security
 
@@ -191,7 +191,8 @@ auto-generated Data API to these tables without affecting the app.
 - Per-client rate limits. `TRUST_PROXY_HEADERS` controls whether `X-Forwarded-For` is believed.
 - CORS allows only `FRONTEND_URL` and `EXTRA_CORS_ORIGINS`, plus `localhost:5173` in development and
   test.
-- The rate limiter is in memory and per process. Several instances would each keep their own count.
+- The rate limiter is in memory and per process. On Vercel, several instances can run at once and
+  each keeps its own count, so a client can get somewhat more than the limit.
   This suits a single small instance. Scaling out needs a shared store.
 
 ## Frontend
@@ -215,7 +216,7 @@ Choices that protect honesty:
 
 | Decision | Reason |
 |---|---|
-| Guest sessions, not Supabase Auth | A farmer can start at once. The cost: clearing browser data loses access to that profile |
+| Guest sessions, not accounts with passwords | A farmer can start at once. The cost: clearing browser data loses access to that profile |
 | Growth stage is selected, never estimated | No verified Punjab stage-by-day table was found |
 | UI is in English. Preferred language applies to assistant replies | Translating agricultural guidance needs review by someone who knows the terms |
 | Wheat only | The spec says not to claim crop support before the rules exist |

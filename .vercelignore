@@ -1,0 +1,18 @@
+# Never upload secrets or local data to Vercel.
+.env
+.env.*
+!.env.example
+.pgdata/
+submission/
+prompt.txt
+
+# Built or installed on Vercel, or not needed there.
+**/node_modules/
+frontend/dist/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+backend/tests/
+docs/
+.github/
+.DS_Store
